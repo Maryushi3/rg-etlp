@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETLP Display Control</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: #f5f5f5; display: flex; justify-content: center; align-items: center;
+         min-height: 100vh; padding: 20px; }
+  .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.1);
+          padding: 32px; width: 100%; max-width: 480px; }
+  h1 { font-size: 1.3rem; margin-bottom: 24px; color: #333; text-align: center; }
+  .field { margin-bottom: 16px; }
+  label { display: block; font-size: .85rem; font-weight: 600; color: #555; margin-bottom: 4px; }
+  input, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px;
+                    font-size: .95rem; font-family: inherit; }
+  input:focus, textarea:focus { outline: none; border-color: #4a90d9; box-shadow: 0 0 0 2px rgba(74,144,217,.2); }
+  .hint { font-size: .75rem; color: #999; margin-top: 2px; }
+  .chars-palette { border-top: 1px solid #eee; padding-top: 12px; margin-top: 4px; }
+  .palette { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+  .palette button { width: 34px; height: 34px; border: 1px solid #ccc; border-radius: 4px;
+                    background: #fafafa; cursor: pointer; font-size: 1rem; line-height: 1;
+                    display: flex; align-items: center; justify-content: center;
+                    transition: background .1s, border-color .1s; }
+  .palette button:hover { background: #e8f0fe; border-color: #4a90d9; }
+  .palette button:active { background: #d0e0f8; }
+  .buttons { display: flex; gap: 12px; margin-top: 20px; }
+  button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 1rem;
+           font-weight: 600; cursor: pointer; transition: opacity .15s; }
+  button:hover { opacity: .85; }
+  .btn-send { background: #4a90d9; color: white; }
+  .btn-clear { background: #e74c3c; color: white; }
+  #status { margin-top: 16px; padding: 10px 14px; border-radius: 6px; font-size: .9rem;
+            display: none; }
+  #status.ok { display: block; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  #status.err { display: block; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>ETLP Display</h1>
+  <form id="form">
+    <div class="field">
+      <label for="l1">Line 1 — Train number <span class="hint">(--l1 / --train)</span></label>
+      <input type="text" id="l1" name="l1" placeholder="e.g. 123">
+    </div>
+    <div class="field">
+      <label for="l2">Line 2 — Departure station <span class="hint">(--l2 / --departure)</span></label>
+      <input type="text" id="l2" name="l2" placeholder="e.g. WARSZAWA">
+    </div>
+    <div class="field">
+      <label for="l3">Line 3 — Route <span class="hint">(--l3 / --route)</span></label>
+      <input type="text" id="l3" name="l3" placeholder="e.g. R-7">
+    </div>
+    <div class="field">
+      <label for="l4">Line 4 — Destination <span class="hint">(--l4 / --destination)</span></label>
+      <input type="text" id="l4" name="l4" placeholder="e.g. KRAKOW">
+      <div class="hint">Total unique text across lines 1-4 should stay under ~332 chars after escape decoding. Longer repetitive text is supported via the CLI.</div>
+    </div>
+    <div class="field">
+      <label for="wag">Wagon number <span class="hint">(optional)</span></label>
+      <input type="text" id="wag" name="wag" placeholder="e.g. 001">
+      <div class="hint">NrWag — lower right corner. Leave empty to hide and let text use full width.</div>
+    </div>
+    <div class="field chars-palette">
+      <label>Special characters <span class="hint">click to insert at cursor</span></label>
+      <div class="palette">
+        <button type="button" data-code="\x01" title="☺ smiley">☺</button>
+        <button type="button" data-code="\x04" title="♦ diamond">♦</button>
+        <button type="button" data-code="\x05" title="♣ club">♣</button>
+        <button type="button" data-code="\x06" title="♠ spade">♠</button>
+        <button type="button" data-code="\x07" title="• bullet">•</button>
+        <button type="button" data-code="\x0E" title="♫ note">♫</button>
+        <button type="button" data-code="\x0F" title="☼ sun">☼</button>
+        <button type="button" data-code="\x10" title="► right">►</button>
+        <button type="button" data-code="\x11" title="◄ left">◄</button>
+        <button type="button" data-code="\x12" title="↕ up/down">↕</button>
+        <button type="button" data-code="\x13" title="‼ dbl excl">‼</button>
+        <button type="button" data-code="\x18" title="↕ arrow">↕</button>
+        <button type="button" data-code="\x19" title="↓ down">↓</button>
+        <button type="button" data-code="\x1A" title="→ right">→</button>
+        <button type="button" data-code="\x1B" title="← left">←</button>
+        <button type="button" data-code="\x1C" title="∟ corner">∟</button>
+        <button type="button" data-code="\x1D" title="↔ left/right">↔</button>
+        <button type="button" data-code="\x1E" title="▲ up">▲</button>
+        <button type="button" data-code="\x1F" title="▼ down">▼</button>
+      </div>
+      <div class="hint">Example: <code>Warszawa \x1A Krakow</code> renders as "Warszawa → Krakow"</div>
+    </div>
+    <div class="buttons">
+      <button type="submit" class="btn-send">Send</button>
+      <button type="button" class="btn-clear" id="clearBtn">Clear</button>
+    </div>
+  </form>
+  <div id="status"></div>
+</div>
+
+<script>
+const form = document.getElementById('form');
+const clearBtn = document.getElementById('clearBtn');
+const status = document.getElementById('status');
+
+function show(msg, ok) {
+  status.textContent = msg;
+  status.className = ok ? 'ok' : 'err';
+  setTimeout(() => { status.className = ''; }, 4000);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  try {
+    const r = await fetch('/send', { method: 'POST', body: fd });
+    const d = await r.json();
+    show(d.message, d.success);
+  } catch (err) {
+    show('Connection error', false);
+  }
+});
+
+clearBtn.addEventListener('click', async () => {
+  try {
+    const r = await fetch('/clear', { method: 'POST' });
+    const d = await r.json();
+    show(d.message, d.success);
+  } catch (err) {
+    show('Connection error', false);
+  }
+});
+
+// Track active text field for palette insert
+let activeField = null;
+document.querySelectorAll('#form input[type="text"]').forEach(el => {
+  el.addEventListener('focus', () => { activeField = el; });
+});
+
+// Palette buttons insert \xNN at cursor in active field
+document.querySelectorAll('.palette button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const code = btn.dataset.code;
+    const el = activeField || document.querySelector('#form input[type="text"]');
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? start;
+    el.value = el.value.slice(0, start) + code + el.value.slice(end);
+    el.selectionStart = el.selectionEnd = start + code.length;
+    el.focus();
+  });
+});
+</script>
+</body>
+</html>
